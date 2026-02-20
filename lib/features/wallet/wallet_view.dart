@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WalletView extends StatefulWidget {
   final Map<String, dynamic> profile;
@@ -21,37 +22,64 @@ class _WalletViewState extends State<WalletView> {
   bool _isLoading = false;
 
   void _handlePayment(int diamonds, int price) async {
-    setState(() {
-      _isLoading = true;
-    });
+    // 1. Lancement du Dialog Web/Wave
+    final success = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // Empêcher la fermeture pendant le chargement
+      builder: (context) =>
+          WaveSandboxDialog(diamondsAmount: diamonds, amountFcfa: price),
+    );
 
-    // Simulation du paiement (ex: API Wave, Orange Money, etc.)
-    await Future.delayed(const Duration(seconds: 2));
+    // 2. Gestion du résultat
+    if (success == true) {
+      if (!mounted) return;
 
-    if (!mounted) return;
+      // Callback pour mettre à jour l'UI ou parent si nécessaire
+      widget.onPaymentSuccess(diamonds);
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Succès!
-    widget.onPaymentSuccess(diamonds);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(LucideIcons.checkCircle, color: Colors.white),
-            const SizedBox(width: 12),
-            Text('Paiement de $price FCFA réussi ! +$diamonds 💎'),
+      // Afficher un message de succès éclatant
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('🎉 Félicitations !', textAlign: TextAlign.center),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Paiement simulé réussi !',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Vos $diamonds diamants 💎 ont été ajoutés à votre compte.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Vous pouvez maintenant retourner dans l\'application KAKI. Le solde s\'est déjà mis à jour !',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Compris !'),
+            ),
           ],
         ),
-        backgroundColor: Colors.green.shade800,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -295,6 +323,187 @@ class _WalletViewState extends State<WalletView> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WaveSandboxDialog extends StatefulWidget {
+  final int amountFcfa;
+  final int diamondsAmount;
+
+  const WaveSandboxDialog({
+    super.key,
+    required this.amountFcfa,
+    required this.diamondsAmount,
+  });
+
+  @override
+  State<WaveSandboxDialog> createState() => _WaveSandboxDialogState();
+}
+
+class _WaveSandboxDialogState extends State<WaveSandboxDialog> {
+  final _phoneController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  Future<void> _processPayment() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty || phone.length < 10) {
+      setState(() => _errorMessage = 'Veuillez entrer un numéro valide.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 1. Attente simulée de 2 secondes
+      await Future.delayed(const Duration(seconds: 2));
+
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      if (userId == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      // TRANSACTION SUPABASE ATOMIQUE (RPC recommandé en prod, on fait simple ici)
+
+      // 1. Récupération du solde actuel
+      final profileData = await supabase
+          .from('users')
+          .select('diamonds')
+          .eq('id', userId)
+          .single();
+
+      final currentDiamonds = (profileData['diamonds'] as int?) ?? 0;
+      final newBalance = currentDiamonds + widget.diamondsAmount;
+
+      // 2. Mise à jour de la table des utilisateurs
+      await supabase
+          .from('users')
+          .update({'diamonds': newBalance})
+          .eq('id', userId);
+
+      // 3. Enregistrement de la transaction dans l'historique
+      await supabase.from('transactions').insert({
+        'user_id': userId,
+        'amount_fcfa': widget.amountFcfa,
+        'diamonds_credited': widget.diamondsAmount,
+        'status': 'success',
+        'payment_provider': 'wave',
+      });
+
+      // 4. Succès
+      if (mounted) {
+        Navigator.pop(
+          context,
+          true,
+        ); // Fermer le dialog en retournant "true" (succès)
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Échec de la transaction. Veuillez réessayer.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Look Wave
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '🌊', // Remplace par l'image du logo Wave
+                  style: TextStyle(fontSize: 32),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Wave Sandbox',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF141F61), // Bleu Wave approximatif
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Achat de ${widget.diamondsAmount} 💎',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Montant : ${widget.amountFcfa} FCFA',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Votre numéro Wave',
+                prefixText: '+225 ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              enabled: !_isLoading,
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _processPayment,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF141F61), // Code couleur Wave
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Valider le paiement',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ],
         ),

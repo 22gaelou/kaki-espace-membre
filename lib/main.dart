@@ -4,10 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'features/home_screen.dart';
 
-// TODO: Remplacer par vos vraies clés Supabase
-// Vous trouverez ces clés dans les paramètres de votre projet Supabase (Settings -> API)
-const String supabaseUrl = 'YOUR_SUPABASE_URL';
-const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+// Vos vraies clés Supabase
+const String supabaseUrl = 'https://jnmjunnydmrcqjbzgcet.supabase.co';
+const String supabaseAnonKey = 'sb_publishable_bkKef4NAh5GSZ1NwAKh50g_u4Xh6Dqi';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
