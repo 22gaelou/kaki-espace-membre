@@ -20,25 +20,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
   String? _errorMessage;
+  String _initialRawUrl = '';
 
   @override
   void initState() {
     super.initState();
+    // Capturer l'URL BRUTE du navigateur IMMÉDIATEMENT avant que le routeur de Flutter
+    // ou usePathUrlStrategy() n'ait eu le temps de la nettoyer ou de la modifier.
+    try {
+      _initialRawUrl = html.window.location.href;
+    } catch (_) {}
+
     _fetchRealProfile();
   }
 
   Future<void> _fetchRealProfile() async {
     try {
-      // Petite pause pour s'assurer que l'app est prête
-      await Future.delayed(const Duration(milliseconds: 500));
+      final currentUri = Uri.parse(
+        _initialRawUrl.isNotEmpty ? _initialRawUrl : Uri.base.toString(),
+      );
 
-      // Essayer de récupérer le token depuis l'URL Web
-      // Grâce à usePathUrlStrategy(), les URL params ne sont plus détruits
-      final currentUri = Uri.base;
       String? refreshToken = currentUri.queryParameters['refresh_token'];
       String? accessToken = currentUri.queryParameters['access_token'];
 
       if (refreshToken == null && currentUri.hasFragment) {
+        // Le fragment peut ressembler à "access_token=xyz&refresh_token=abc"
         final fragmentUri = Uri.parse('?${currentUri.fragment}');
         refreshToken = fragmentUri.queryParameters['refresh_token'];
         accessToken = fragmentUri.queryParameters['access_token'];
