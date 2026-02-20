@@ -40,14 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
         _initialRawUrl.isNotEmpty ? _initialRawUrl : Uri.base.toString(),
       );
 
-      String? refreshToken = currentUri.queryParameters['refresh_token'];
-      String? accessToken = currentUri.queryParameters['access_token'];
+      String? refreshToken = currentUri.queryParameters['t_r'];
+      String? accessToken = currentUri.queryParameters['t_a'];
 
       if (refreshToken == null && currentUri.hasFragment) {
-        // Le fragment peut ressembler à "access_token=xyz&refresh_token=abc"
+        // Le fragment peut ressembler à "t_a=xyz&t_r=abc"
         final fragmentUri = Uri.parse('?${currentUri.fragment}');
-        refreshToken = fragmentUri.queryParameters['refresh_token'];
-        accessToken = fragmentUri.queryParameters['access_token'];
+        refreshToken = fragmentUri.queryParameters['t_r'];
+        accessToken = fragmentUri.queryParameters['t_a'];
       }
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
