@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isLoading = false;
           _errorMessage =
-              "Vous n'êtes pas connecté.\n\nURL reçue:\n${currentUri.toString()}\n\nParams: ${currentUri.queryParameters}";
+              "Vous n'êtes pas connecté. Veuillez cliquer sur 'Membre Premium' depuis l'application Kaki pour accéder à cette page.";
         });
         return;
       }
