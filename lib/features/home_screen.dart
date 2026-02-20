@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:kaki/features/settings/settings_view.dart';
 import 'package:kaki/features/wallet/wallet_view.dart';
 
