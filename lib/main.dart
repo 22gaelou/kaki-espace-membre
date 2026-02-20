@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'features/home_screen.dart';
 
 // Vos vraies clés Supabase
@@ -10,6 +11,7 @@ const String supabaseAnonKey = 'sb_publishable_bkKef4NAh5GSZ1NwAKh50g_u4Xh6Dqi';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
 
   // Initialisation de Supabase
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);

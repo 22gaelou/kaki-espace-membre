@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:kaki/features/settings/settings_view.dart';
 import 'package:kaki/features/wallet/wallet_view.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,15 +29,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchRealProfile() async {
     try {
-      // Petite pause pour laisser Supabase récupérer la session depuis l'URL (si on arrive de l'app mobile via un Magic Link ou Token)
-      await Future.delayed(const Duration(milliseconds: 1000));
+      // Petite pause pour s'assurer que l'app est prête
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Essayer de récupérer le token depuis l'URL Web
+      // Grâce à usePathUrlStrategy(), les URL params ne sont plus détruits
+      final currentUri = Uri.base;
+      String? refreshToken = currentUri.queryParameters['refresh_token'];
+      String? accessToken = currentUri.queryParameters['access_token'];
+
+      if (refreshToken == null && currentUri.hasFragment) {
+        final fragmentUri = Uri.parse('?${currentUri.fragment}');
+        refreshToken = fragmentUri.queryParameters['refresh_token'];
+        accessToken = fragmentUri.queryParameters['access_token'];
+      }
+
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        try {
+          await Supabase.instance.client.auth.setSession(refreshToken);
+        } catch (e) {
+          debugPrint("Erreur récupération session depuis URL: $e");
+        }
+      }
 
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         setState(() {
           _isLoading = false;
           _errorMessage =
-              "Vous n'êtes pas connecté. Veuillez cliquer sur 'Membre Premium' depuis l'application Kaki pour accéder à cette page.";
+              "Vous n'êtes pas connecté.\n\nURL reçue:\n${currentUri.toString()}\n\nParams: ${currentUri.queryParameters}";
         });
         return;
       }
